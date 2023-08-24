@@ -4,4 +4,4 @@ _SPASM_ is a set of MATLAB classes and functions to stitch together an arbitrary
 
 ## Installation
 
-Place the files in your MATLAB path and run the _stitch_ function found in the `main/scripts/J_spring.mlx` example with your spring geometry and material properties stored in the _sections_ hashmap.
+Place the files in your MATLAB path and run the _stitch_ function found in the `main/models/solver_template.m` example with your spring geometry and material properties stored in the _sections_ hashmap. Make sure you specify your material properties in the _constants_ hashmap and your external forces in the _forces_ hashmap. If you wish to apply a point moment, you can do so by specifying the _couple_ property of a beam section as non-zero.
