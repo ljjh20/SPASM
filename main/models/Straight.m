@@ -93,6 +93,7 @@ classdef Straight < handle
             % partial diff according to Castigliano's 2nd theorem
             obj.U = int(dU, s, [l1 l2]);
             obj.dh = int(diff(dU, Ph), s, [l1 l2]);
+            disp(obj.dh)
             obj.dv = int(diff(dU, Pv), s, [l1 l2]);
             obj.dth = int(diff(dU, Mp), s, [l1 l2]);
 %             obj.U = int(dU, s, [l2, l1]);

@@ -147,13 +147,8 @@ classdef Curved < handle
             Mo = 0;
             g = obj.start_angle;
             th = obj.start_angle;
-            vpa(subs(obj.Mth))
 
-            Mo = obj.couple - vpa(subs(obj.Mth))
-
-            disp('in class')
-            disp(obj.length)
-            disp(obj.height)
+            Mo = obj.couple - vpa(subs(obj.Mth));
 
             % flip forces if angles change counter clockwise
 %             if (obj.start_angle > obj.end_angle) % || (obj.start_angle < 0 || obj.end_angle < 0)
@@ -166,44 +161,43 @@ classdef Curved < handle
 
                 th = obj.start_angle; % for finding Mth
                 g = obj.start_angle;
-
-                M = vpa(subs(obj.Mth)); % may need to adjust moment based on change in length
-                ang = vpa(subs(obj.dth)); % may need to rotate angle
-                U = vpa(subs(obj.U));
                 
-%                 Vta = vpa(subs(obj.dv));
-%                 Hta = vpa(subs(obj.dh));
-                % add transform to sum 
-%                 rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1];
-%                 vta = 
-%                 sH = 0;
-%                 sV = 0;
-%                 sH = R*((1-cos(l2))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l2)-sin(obj.start_angle)); % static perpendicular to V
-%                 sH = R*((1-cos(l1))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l1)-sin(obj.start_angle)); % static perpendicular to V
-                sH = R*((1-cos(l1))); 
-                sV = R*(sin(l1));
-
+                % undeformed position of loaded end
+                sH = R*(cos(l1))-R*(cos(l2));
+                sV = R*(sin(l1))-R*(sin(l2));
+                
+                % clockwise roatation matrix
                 rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1]; % clockwise
+                
+                % shift such that beam is roated about fixed end
+                tr0 = [1 0 -0; 0 1 -0; 0 0 1];
+%                 tr1 = [1 0 R*(cos(l2)); 0 1 R*(sin(l2)); 0 0 1];
+                tr1 = [1 0 0; 0 1 0; 0 0 1];
 
-                tm1 = [1 0 -sH; 0 1 0; 0 0 1]; % translate to coord system origin
-                tm01 = [1 0 sH; 0 1 obj.bH; 0 0 1];
+                ta = [sH+vpa(subs(obj.dh)); sV+vpa(subs(obj.dv)); ones(size(sH))];
+                tra = tr1*rm*tr0*ta;
+                % for 'sum', return abs deformation instead of relative to static beam
+                Hta = tra(1, 1:end)-sH;
+                Vta = tra(2, 1:end)-sV;
 
-                tm2 = [1 0 -sV; 0 1 0; 0 0 1];
-                tm02 = [1 0 sV; 0 1 -obj.bV; 0 0 1];
+                ang = vpa(subs(obj.dth));
 
-                Hta = tm01*rm*tm1*[sH; vpa(subs(obj.dh)); 1];
-                Vta = tm02*rm*tm2*[sV; vpa(subs(obj.dv)); 1];
+%                 % flip back for energy, moment, angle calculations
+                if (obj.start_angle > obj.end_angle) % || (obj.start_angle < 0 || obj.end_angle < 0)
+%                     H = -1*H;
+%                     V = -1*V;
+                    M = -1*vpa(subs(obj.Mth));
+                else
+                    M = vpa(subs(obj.Mth));
+                end
+                U = abs(vpa(subs(obj.U)));
 
             elseif(matches('linspace', out_type))
                 l1 = linspace(obj.start_angle, obj.end_angle, abs(round(R*(obj.end_angle-obj.start_angle)*1000)));
                 l2 = ones(1,length(l1))*obj.end_angle;
                 th = l1; % for moment obj.calc (lim from l1, l2 otherwise)
                 g = l1;
-% 
-%                 sH = R*((1-cos(l1))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l1)-sin(obj.start_angle)); % static perpendicular to V
+
                 sH = R*(cos(l1));
                 sV = R*(sin(l1));
 
