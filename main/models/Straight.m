@@ -64,13 +64,7 @@ classdef Straight < handle
             obj.ba = vals('boundary_angle');
             obj.bV = vals('boundary_defV');
             obj.bH = vals('boundary_defH');
-            
-            % define moment and shear expressions throughout beam
-%             Ms(H, V, Mo, Ph, Pv, Mp, lp, s, l) = H*s*cos(obj.beam_angle) + V*s*sin(obj.beam_angle) + Mo...
-%                 + Ph*(s-lp)*cos(obj.beam_angle) + Pv*(s-lp)*sin(obj.beam_angle) + Mp;
-%             Vs(H, V, Ph, Pv, s) = (H + Ph)*cos(obj.beam_angle) + (V + Pv)*sin(obj.beam_angle);
-%             Ns(H, V, Ph, Pv, s) = (V + Pv)*cos(obj.beam_angle) - (H + Ph)*sin(obj.beam_angle);
-
+ 
             % define moment and shear expressions throughout beam
             % s: var, lo: probe length, l: total beam length
             Ms(H, V, Mo, Ph, Pv, Mp, lp, s, l) = (V*(l-s) + Pv*(lp-s))*cos(obj.beam_angle)...
@@ -78,29 +72,19 @@ classdef Straight < handle
 
             Vs(H, V, Ph, Pv, s) = (V + Pv)*cos(obj.beam_angle) - (H + Ph)*sin(obj.beam_angle);
             Ns(H, V, Ph, Pv, s) = (H + Ph)*cos(obj.beam_angle) + (V + Pv)*sin(obj.beam_angle);
-%             Ms(H, V, Mo, Ph, Pv, Mp, lp, s, l) = (V*(s) + Pv*(s-lp))*cos(obj.beam_angle)...
-%                 - (H*(s) + Ph*(s-lp))*sin(obj.beam_angle) + Mo + Mp;
-% 
-%            Vs(H, V, Ph, Pv, s) = (V + Pv)*cos(obj.beam_angle) - (H + Ph)*sin(obj.beam_angle);
-%             Ns(H, V, Ph, Pv, s) = (H + Ph)*cos(obj.beam_angle) + (V + Pv)*sin(obj.beam_angle);
             
             % account for transverse shear and normal stress
             dU = (Ms(H, V, Mo, Ph, Pv, Mp, lp, s, l)^2)/(2*E*I)...
                 + (Ns(H, V, Ph, Pv, s)^2)/(2*E*A)...
                 + (F*Vs(H, V, Ph, Pv, s)^2)/(2*A*G);
-
             
             % partial diff according to Castigliano's 2nd theorem
             obj.U = int(dU, s, [l1 l2]);
             obj.dh = int(diff(dU, Ph), s, [l1 l2]);
             obj.dv = int(diff(dU, Pv), s, [l1 l2]);
             obj.dth = int(diff(dU, Mp), s, [l1 l2]);
-%             obj.U = int(dU, s, [l2, l1]);
-%             obj.dh = int(diff(dU, Ph), s, [l2, l1]);
-%             obj.dv = int(diff(dU, Pv), s, [l2, l1]);
-%             obj.dth = int(diff(dU, Mp), s, [l2, l1]);
             
-            % compute moments and stresses
+            % assign equations to properties
             obj.Ms = Ms(H, V, Mo, Ph, Pv, Mp, lp, s, l);
             obj.Vs = Vs(H, V, Ph, Pv, s);
             obj.Ns = Ns(H, V, Ph, Pv, s);
@@ -125,12 +109,37 @@ classdef Straight < handle
             G = obj.shear_mod;
             F = obj.shape_factor;
             I = (obj.width*obj.thickness^3)/12;
-            Mo = obj.couple
+            Mo = obj.couple;
 
 
             if(matches('sum', out_type)) % find deflection across full beam
                 l2 = obj.section_length;
                 l1 = 0;
+
+                lp = l2;
+                l = obj.section_length;
+
+                % interested in moment across structure, not at end
+                % necessarily 
+                s = 0; % for moment calc (lim from l1, l2 otherwise)
+                M = vpa(subs(obj.Ms));
+
+                ang = vpa(subs(obj.dth));
+                U = vpa(subs(obj.U));
+
+                sH = l2.*cos(obj.beam_angle);
+                sV = l2.*sin(obj.beam_angle);
+
+                rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1]; % cc
+                tr0 = [1 0 -l1*cos(obj.beam_angle); 0 1 -l1*sin(obj.beam_angle); 0 0 1];
+                tr1 = [1 0 l1*cos(obj.beam_angle); 0 1 l1*sin(obj.beam_angle); 0 0 1];
+
+                ta = [sH+vpa(subs(obj.dh)); sV+vpa(subs(obj.dv)); ones(size(sH))];
+                tra = tr1*rm*tr0*ta;
+                Hta = tra(1, 1:end)-sH;
+                Vta = tra(2, 1:end)-sV;
+               
+
 %                 lp = l1; % loaded end is x=0
 %                 s = l1;
 %                 
