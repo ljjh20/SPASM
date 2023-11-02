@@ -1,11 +1,8 @@
 classdef Curved < handle
-    %UNTITLED Summary of this class goes here
-    %   Detailed explanation goes here
+    %CURVED class to model deflection of thick and thin curved beams using Castigliano's second Theorem.
     
     properties
         thickness
-        length
-        height
         width
         radius
         sweep_angle
@@ -17,6 +14,8 @@ classdef Curved < handle
         rc_ratio
         ec_ratio
         couple
+
+        shape
 
         ba % boundary angle
         bV % boundary V def (v_def(1))
@@ -30,26 +29,43 @@ classdef Curved < handle
         Vth % sum of transverse shear stresses
         Nth % sum of axial stresses
     end
+
+    properties (Dependent)
+        length
+        height
+    end
     
     methods
+        % getters / setters
+        function len = get.length(obj)
+            % cartesian length of beam section
+            len = obj.radius*(cos(obj.start_angle)-cos(obj.end_angle));
+        end
+        function hei = get.height(obj)
+            % cartesian height of beam section
+            hei = obj.radius*(sin(obj.start_angle)-sin(obj.end_angle));
+        end
+        function set.length(obj, l)
+        end
+        function set.height(obj, h)
+            % cartesian height of beam section
+        end
         function obj = Curved(const, vals)
-            %Curved class to model deflection of large (R>10h) curved
-            %beams using Castigliano's Theorem.
-            
+
             syms R V H Pv Ph Mo Mp th g
             syms E I G e A F
             syms l1 l2
             syms Mth(V, H, Pv, Ph, Mo, Mp, R, g, th)
             syms Vth(V, H, Pv, Ph, th)
             syms Nth(V, H, Pv, Ph, th)
+
+            obj.shape = 'curved';
             
             % Assign values to properties
             obj.youngs_mod = const('youngs_mod');
             obj.shear_mod = const('shear_mod');
             obj.shape_factor = const('shape_factor');
-            
             obj.thickness = vals('thickness');
-
             obj.width = vals('width');
             obj.radius = vals('radius');
             obj.sweep_angle = vals('sweep_angle');
@@ -57,6 +73,7 @@ classdef Curved < handle
             obj.start_angle = vals('start_angle');
             obj.end_angle = vals('end_angle');
 
+            % cartesian length and height of beam section
             obj.length = obj.radius*(cos(obj.start_angle)-cos(obj.end_angle));
             obj.height = obj.radius*(sin(obj.start_angle)-sin(obj.end_angle));
             
@@ -64,27 +81,21 @@ classdef Curved < handle
             obj.bV = vals('boundary_defV');
             obj.bH = vals('boundary_defH');
 
-            % from 'Roark's Formulas for Stress and Strain', 9th Edition
-            % for rectangular cross-sections
-            obj.rc_ratio = [1.2, 1.4, 1.6, 1.8, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0];
-            obj.ec_ratio = [0.366, 0.284, 0.236, 0.204, 0.18, 0.115, 0.085, 0.056, 0.042, 0.033];
-
-%             % Sum of moments at angular position
-%             Mth(V, H, Pv, Ph, Mo, Mv, R, g, th) = V*R*sin(th) + H*R*(1-cos(th)) + Mo + Pv*R*(2*cos((th+g)/2)*sin((th-g)/2)) - Ph*R*(2*sin((g+th)/2)*sin((g-th)/2)) + Mv;
-%             Vth(V, H, Pv, Ph, th) = V*cos(th) + H*sin(th) + Pv*cos(th) + Ph*sin(th);
-%             Nth(V, H, Pv, Ph, th) = -H*cos(th) - Ph*cos(th) + V*sin(th) + Pv*sin(th);
-
             % Sum of moments at angular position
             Mth(V, H, Pv, Ph, Mo, Mp, R, g, th) = H*R*sin(th) + V*R*(1-cos(th)) + Mo + Ph*R*(2*cos((th+g)/2)*sin((th-g)/2)) - Pv*R*(2*sin((g+th)/2)*sin((g-th)/2)) + Mp;
             
+            % sum of transverse shear stresses at angular position
             Vth(V, H, Pv, Ph, th) = H*cos(th) + V*sin(th) + Ph*cos(th) + Pv*sin(th);
+
+            % sum of axial shear stresses at angular position
             Nth(V, H, Pv, Ph, th) = -V*cos(th) - Pv*cos(th) + H*sin(th) + Ph*sin(th);
             
+            % assign to properties
             obj.Mth = Mth(V, H, Pv, Ph, Mo, Mp, R, g, th);
             obj.Vth = Vth(V, H, Pv, Ph, th);
             obj.Nth = Nth(V, H, Pv, Ph, th);
 
-            if obj.radius/(obj.thickness/2) > 10.0
+            if obj.radius/(obj.thickness) > 10.0 % "radius of curvature < 10x depth"
                 dU = (R*Mth(V, H, Pv, Ph, Mo, Mp, R, g, th)^2)/(2*E*I);
             else
                 disp('chonk')
@@ -104,14 +115,11 @@ classdef Curved < handle
             % break f into global V and H. Use to find couple and pass into object
             % f = matrix [V; H] Transform V and H locally in object
 % 
-%             fta_clockwise = [cos(obj.ba) sin(obj.ba); ...
-%                 -sin(obj.ba) cos(obj.ba)]*forces('f'); 
+%             fta_cclockwise = [cos(obj.ba) -sin(obj.ba); ...
+%                 sin(obj.ba) cos(obj.ba)]*forces('f'); 
+            % placeholder that is true for small deflections
             fta_cclockwise = [cos(0) -sin(0); ...
                 sin(0) cos(0)]*forces('f');
-
-%             fta_cclockwise = [cos(obj.ba) -sin(obj.ba); ...
-%                 sin(obj.ba) cos(obj.ba)]*forces('f');
-
 
             % obj.ba: boundary angular deflection
             % net force already distributed to vertical and horizontal in
@@ -135,9 +143,13 @@ classdef Curved < handle
             F = obj.shape_factor;
             I = (obj.width*obj.thickness^3)/12;
             A = obj.width*obj.thickness;
-            e = (obj.thickness/2)*interp1(obj.rc_ratio, obj.ec_ratio, obj.radius/(obj.thickness/2));
             
-            % as these are probing forces at the point of interest
+            % from 'Roark's Formulas for Stress and Strain', 9th Edition for rectangular cross-sections
+            rc = R/(0.5*obj.thickness);
+            e = 0.5*obj.thickness*(rc-2/log((rc+1)/(rc-1)));
+%             ratio = A*e*R/I
+
+            % set to 0 as these are probing forces at the point of interest
             Pv = 0;
             Ph = 0;
             Mp = 0;
@@ -147,13 +159,8 @@ classdef Curved < handle
             Mo = 0;
             g = obj.start_angle;
             th = obj.start_angle;
-            vpa(subs(obj.Mth))
 
-            Mo = obj.couple - vpa(subs(obj.Mth))
-
-            disp('in class')
-            disp(obj.length)
-            disp(obj.height)
+            Mo = obj.couple - vpa(subs(obj.Mth));
 
             % flip forces if angles change counter clockwise
 %             if (obj.start_angle > obj.end_angle) % || (obj.start_angle < 0 || obj.end_angle < 0)
@@ -163,63 +170,51 @@ classdef Curved < handle
             if(matches('sum', out_type))
                 l1 = obj.start_angle;
                 l2 = obj.end_angle;
-
-                th = obj.start_angle; % for finding Mth
                 g = obj.start_angle;
 
-                M = vpa(subs(obj.Mth)); % may need to adjust moment based on change in length
-                ang = vpa(subs(obj.dth)); % may need to rotate angle
-                U = vpa(subs(obj.U));
+                th = obj.end_angle; % for finding Mth
                 
-%                 Vta = vpa(subs(obj.dv));
-%                 Hta = vpa(subs(obj.dh));
-                % add transform to sum 
-%                 rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1];
-%                 vta = 
-%                 sH = 0;
-%                 sV = 0;
-%                 sH = R*((1-cos(l2))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l2)-sin(obj.start_angle)); % static perpendicular to V
-%                 sH = R*((1-cos(l1))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l1)-sin(obj.start_angle)); % static perpendicular to V
-                sH = R*((1-cos(l1))); 
-                sV = R*(sin(l1));
-
+                % undeformed position of loaded end
+                sH = R*(cos(l1))-R*(cos(l2));
+                sV = R*(sin(l1))-R*(sin(l2));
+                
+                % clockwise roatation matrix
                 rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1]; % clockwise
+                
+                % shift such that beam is roated about fixed end
+                tr0 = [1 0 -0; 0 1 -0; 0 0 1];
+%                 tr1 = [1 0 R*(cos(l2)); 0 1 R*(sin(l2)); 0 0 1];
+                tr1 = [1 0 0; 0 1 0; 0 0 1];
 
-                tm1 = [1 0 -sH; 0 1 0; 0 0 1]; % translate to coord system origin
-                tm01 = [1 0 sH; 0 1 obj.bH; 0 0 1];
+                ta = [sH+vpa(subs(obj.dh)); sV+vpa(subs(obj.dv)); ones(size(sH))];
+                tra = tr1*rm*tr0*ta;
+                % for 'sum', return abs deformation instead of relative to static beam
+                Hta = tra(1, 1:end)-sH;
+                Vta = tra(2, 1:end)-sV;
 
-                tm2 = [1 0 -sV; 0 1 0; 0 0 1];
-                tm02 = [1 0 sV; 0 1 -obj.bV; 0 0 1];
+                ang = vpa(subs(obj.dth));
 
-                Hta = tm01*rm*tm1*[sH; vpa(subs(obj.dh)); 1];
-                Vta = tm02*rm*tm2*[sV; vpa(subs(obj.dv)); 1];
+%                 % flip back for energy, moment, angle calculations
+                if (obj.start_angle > obj.end_angle) % || (obj.start_angle < 0 || obj.end_angle < 0)
+%                     H = -1*H;
+%                     V = -1*V;
+                    M = -1*vpa(subs(obj.Mth));
+                else
+                    M = vpa(subs(obj.Mth));
+                end
+                U = abs(vpa(subs(obj.U)));
 
             elseif(matches('linspace', out_type))
-                l1 = linspace(obj.start_angle, obj.end_angle, abs(round(R*(obj.end_angle-obj.start_angle)*1000)));
-                l2 = ones(1,length(l1))*obj.end_angle;
+%                 l1 = linspace(obj.start_angle, obj.end_angle, abs(round(R*(obj.end_angle-obj.start_angle)*1000)));
+                l1 = linspace(obj.start_angle, obj.end_angle, 20);
+                l2 = ones(1, 20)*obj.end_angle;
                 th = l1; % for moment obj.calc (lim from l1, l2 otherwise)
                 g = l1;
-% 
-%                 sH = R*((1-cos(l1))-(1-cos(obj.start_angle))); % static perpendicular to H
-%                 sV = R*(sin(l1)-sin(obj.start_angle)); % static perpendicular to V
+
                 sH = R*(cos(l1));
                 sV = R*(sin(l1));
 
                 rm = [cos(obj.ba) -sin(obj.ba) 0; sin(obj.ba) cos(obj.ba) 0; 0 0 1]; % cclockwise
-
-%                 tm1 = [1 0 -sV(end); 0 1 0; 0 0 1]; % translate to coord system origin
-%                 tm01 = [1 0 sV(end); 0 1 0; 0 0 1];
-% 
-%                 tm2 = [1 0 -sH(end); 0 1 0; 0 0 1];
-%                 tm02 = [1 0 sH(end); 0 1 0; 0 0 1];
-% 
-%                 Hta = tm01*rm*tm1*[sV; vpa(subs(obj.dh)); ones(size(sV))];
-%                 Vta = tm02*rm*tm2*[sH; vpa(subs(obj.dv)); ones(size(sH))];
-% 
-%                 Hta = sH+Hta(2, 1:end);
-%                 Vta = sV+Vta(2, 1:end);
 
                 tr0 = [1 0 -sH(end); 0 1 -sV(end); 0 0 1];
                 tr1 = [1 0 sH(end); 0 1 sV(end); 0 0 1];
@@ -240,8 +235,8 @@ classdef Curved < handle
                     M = vpa(subs(obj.Mth));
                 end
                 U = abs(vpa(subs(obj.U)));
-%                 M = vpa(subs(obj.Mth)); % may need to adjust moment based on change in length
                 
+                % flip to be in same order as in straight beam class (from constraint to loaded end)
                 sH = fliplr(sH);
                 sV = fliplr(sV);
                 Hta = fliplr(Hta);
