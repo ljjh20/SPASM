@@ -29,3 +29,8 @@ codegen/
 
 # Octave session info
 octave-workspace
+
+# archive class files
+Curved_old.m
+BigR.m
+

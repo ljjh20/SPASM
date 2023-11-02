@@ -3,8 +3,6 @@ classdef Curved < handle
     
     properties
         thickness
-        length
-        height
         width
         radius
         sweep_angle
@@ -16,6 +14,8 @@ classdef Curved < handle
         rc_ratio
         ec_ratio
         couple
+
+        shape
 
         ba % boundary angle
         bV % boundary V def (v_def(1))
@@ -29,8 +29,27 @@ classdef Curved < handle
         Vth % sum of transverse shear stresses
         Nth % sum of axial stresses
     end
+
+    properties (Dependent)
+        length
+        height
+    end
     
     methods
+        % getters / setters
+        function len = get.length(obj)
+            % cartesian length of beam section
+            len = obj.radius*(cos(obj.start_angle)-cos(obj.end_angle));
+        end
+        function hei = get.height(obj)
+            % cartesian height of beam section
+            hei = obj.radius*(sin(obj.start_angle)-sin(obj.end_angle));
+        end
+        function set.length(obj, l)
+        end
+        function set.height(obj, h)
+            % cartesian height of beam section
+        end
         function obj = Curved(const, vals)
 
             syms R V H Pv Ph Mo Mp th g
@@ -39,6 +58,8 @@ classdef Curved < handle
             syms Mth(V, H, Pv, Ph, Mo, Mp, R, g, th)
             syms Vth(V, H, Pv, Ph, th)
             syms Nth(V, H, Pv, Ph, th)
+
+            obj.shape = 'curved';
             
             % Assign values to properties
             obj.youngs_mod = const('youngs_mod');
@@ -94,8 +115,8 @@ classdef Curved < handle
             % break f into global V and H. Use to find couple and pass into object
             % f = matrix [V; H] Transform V and H locally in object
 % 
-%             fta_clockwise = [cos(obj.ba) sin(obj.ba); ...
-%                 -sin(obj.ba) cos(obj.ba)]*forces('f'); 
+%             fta_cclockwise = [cos(obj.ba) -sin(obj.ba); ...
+%                 sin(obj.ba) cos(obj.ba)]*forces('f'); 
             % placeholder that is true for small deflections
             fta_cclockwise = [cos(0) -sin(0); ...
                 sin(0) cos(0)]*forces('f');
@@ -184,8 +205,9 @@ classdef Curved < handle
                 U = abs(vpa(subs(obj.U)));
 
             elseif(matches('linspace', out_type))
-                l1 = linspace(obj.start_angle, obj.end_angle, abs(round(R*(obj.end_angle-obj.start_angle)*1000)));
-                l2 = ones(1,length(l1))*obj.end_angle;
+%                 l1 = linspace(obj.start_angle, obj.end_angle, abs(round(R*(obj.end_angle-obj.start_angle)*1000)));
+                l1 = linspace(obj.start_angle, obj.end_angle, 20);
+                l2 = ones(1, 20)*obj.end_angle;
                 th = l1; % for moment obj.calc (lim from l1, l2 otherwise)
                 g = l1;
 
