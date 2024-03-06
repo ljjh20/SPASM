@@ -74,7 +74,7 @@ function [x_base, y_base, x_deformed, y_deformed, M, ang, strain_e, stiffness] =
             xdef_offset = xdef_offset + h_def(end);
             ydef_offset = ydef_offset + v_def(end);
     
-            angle_offset = angle(end);
+            angle_offset = ang(end);
             energy_offset = strain_e(end);
     
             a_offset = a_offset + angle(end);

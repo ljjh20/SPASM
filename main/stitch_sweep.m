@@ -21,7 +21,9 @@ function [X_base, Y_base, X_deformed, Y_deformed, Mnt, Ang, Strain_e, Stiffness]
 
     var_array = linspace(range(1), range(2), res);
     for i=1:res
-
+        
+        % defined here in case forces is not the sweep parameter
+        % must end up in the form [V; H], but supply as F and angle
         f = forces('f'); % is in the form [V; H]
         
         v_offset = 0; % buffer to be overwritten for each loop
@@ -66,8 +68,12 @@ function [X_base, Y_base, X_deformed, Y_deformed, Mnt, Ang, Strain_e, Stiffness]
                     sec.youngs_mod = var_array(i);
                 elseif matches("couple", var)
                     sec.couple = var_array(i);
-    %             elseif matches("forces", var)
-    %                 f = var_array(i, 1)
+                elseif matches("forces", var)
+                    % must be supplied as
+%                     f = var_array(i, 1);
+%                     V = F*sin(Fa); 
+%                     H = F*cos(Fa);
+                    f = [F*sin(Fa); F*cos(Fa)];
                 end
             catch ME
                 a = "A structure section does not have property " + var;
@@ -123,7 +129,7 @@ function [X_base, Y_base, X_deformed, Y_deformed, Mnt, Ang, Strain_e, Stiffness]
                 xdef_offset = xdef_offset + h_def(end);
                 ydef_offset = ydef_offset + v_def(end);
         
-                angle_offset = angle(end);
+                angle_offset = ang(end);
                 energy_offset = strain_e(end);
         
                 a_offset = a_offset + angle(end);
