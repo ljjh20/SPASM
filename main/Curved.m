@@ -5,7 +5,6 @@ classdef Curved < handle
         thickness
         width
         radius
-        sweep_angle
         start_angle
         end_angle
         youngs_mod
@@ -68,7 +67,6 @@ classdef Curved < handle
             obj.thickness = vals('thickness');
             obj.width = vals('width');
             obj.radius = vals('radius');
-            obj.sweep_angle = vals('sweep_angle');
             obj.couple = vals('couple');
             obj.start_angle = vals('start_angle');
             obj.end_angle = vals('end_angle');
